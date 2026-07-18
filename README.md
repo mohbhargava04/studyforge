@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StudyForge
 
-## Getting Started
+StudyForge is an adaptive, chat-first study planner. It turns a course topic map, prerequisite relationships, and a student's available time into an explainable hourly plan—and recalculates that plan when the student falls behind.
 
-First, run the development server:
+This repository currently contains a polished, local-first Build Week prototype using a seeded DSA course.
+
+## What works now
+
+- An inspectable topic and prerequisite map
+- A deterministic planner that selects a prerequisite-closed set of topics within a time budget
+- Hour-by-hour blocks in topological (prerequisite-safe) order
+- Adjustable days, study hours, topic estimates, and subject focus
+- Live re-planning when a topic is completed or needs more time
+- Coverage, deferred-topic, and recovery-buffer explanations
+- Contextual study-block interface ready for source-grounded AI chat
+
+The planner uses exact subset search for the build-week-sized course map (up to 16 unfinished topics). A selected dependent must include every unfinished prerequisite, so it cannot schedule Dijkstra without BFS. Larger maps use a deterministic dependency-aware fallback.
+
+## Run locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo flow
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Start with the default 3 days × 2 hours plan.
+2. Select **BFS**, then choose **I need more time**.
+3. StudyForge adds a practice hour, re-optimizes future blocks, and shows the weighted-coverage trade-off.
+4. Reduce the number of days or change focus to see the plan retain valid prerequisite paths.
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+| Layer | Responsibility |
+| --- | --- |
+| `src/lib/planner.ts` | Course graph validation, prerequisite closure, deterministic selection, topological allocation, coverage calculation |
+| `src/app/page.tsx` | Interactive study workspace and plan controls |
+| Future AI layer | Material extraction, source-grounded explanations, mini-quizzes, and natural-language plan actions |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Next build milestones
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Persist courses, topics, blocks, and progress in Supabase.
+2. Add PDF or YouTube transcript ingestion and structured topic extraction.
+3. Make the learning map fully editable (nodes and prerequisite edges).
+4. Add an OpenAI-backed contextual block chat and mastery checks.
+5. Deploy to Vercel and record the Build Week demo.
