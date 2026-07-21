@@ -1,20 +1,22 @@
 # StudyForge
 
-StudyForge is an adaptive, chat-first study planner. It turns a course topic map, prerequisite relationships, and a student's available time into an explainable hourly plan—and recalculates that plan when the student falls behind.
+StudyForge is an adaptive study operating system for deadline pressure. It turns course material, an editable prerequisite map, and the hours a learner actually has into a focused plan that explains every trade-off.
 
-This repository currently contains a polished, local-first Build Week prototype using a seeded DSA course.
+The product is fully usable in local-first mode: no account, database, or API key is required to try the DSA demo, create courses from an outline, plan work, replan, quiz yourself, or save learning artifacts.
 
-## What works now
+## What is built
 
-- An inspectable topic and prerequisite map
-- A deterministic planner that selects a prerequisite-closed set of topics within a time budget
-- Hour-by-hour blocks in topological (prerequisite-safe) order
-- Adjustable days, study hours, topic estimates, and subject focus
-- Live re-planning when a topic is completed or needs more time
-- Coverage, deferred-topic, and recovery-buffer explanations
-- Contextual study-block interface ready for source-grounded AI chat
-
-The planner uses exact subset search for the build-week-sized course map (up to 16 unfinished topics). A selected dependent must include every unfinished prerequisite, so it cannot schedule Dijkstra without BFS. Larger maps use a deterministic dependency-aware fallback.
+- A polished multi-course workspace with Today, Plan, Learning Map, Notebook, Progress, and Portfolio views.
+- A focused “what should I do now?” study block with source context, rationale, completion, skip, and recovery actions.
+- An editable, visible prerequisite DAG with cycle and missing-edge validation.
+- A deterministic prerequisite-closed planner: it cannot schedule a dependent topic without every unfinished prerequisite in scope.
+- Timeline and agenda plan views with availability controls, focus lenses, weighted coverage, buffers, deferrals, and plain-language explanations.
+- Live, explainable replanning with a before/after coverage diff, moved blocks, deferred/added topics, prerequisite safety confirmation, and undo.
+- Local persistence in browser storage, plus a resettable DSA + Calculus demo workspace.
+- Course intake for pasted text, files, or public YouTube references; it creates an editable local map even when AI is unavailable.
+- A contextual Forge Coach with source-aware local fallback, prompt chips, schedule-change proposal cards, and optional server-side OpenAI enhancement.
+- Built-in visual explanation, formula sheet, 20-minute rescue plan, browser text-to-speech, mini-quizzes, and a searchable Course Notebook.
+- Progress that separates completed work, scheduled coverage, confidence/mastery, at-risk topics, and recovery buffer.
 
 ## Run locally
 
@@ -25,25 +27,49 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Demo flow
+### Optional AI enhancement
 
-1. Start with the default 3 days × 2 hours plan.
-2. Select **BFS**, then choose **I need more time**.
-3. StudyForge adds a practice hour, re-optimizes future blocks, and shows the weighted-coverage trade-off.
-4. Reduce the number of days or change focus to see the plan retain valid prerequisite paths.
+Copy `.env.example` to `.env.local`, then add a server-side key:
+
+```bash
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5
+```
+
+Without a key, StudyForge remains fully demoable through deterministic, local source-aware fallbacks. With a key, `/api/coach` and `/api/ingest` use the Responses API for contextual coaching and first-pass material extraction. Keys are never sent to the browser.
+
+## Best demo flow
+
+1. Open the seeded **DSA final** course: 3 days, 2 hours per day.
+2. In **Learning Map**, trace Graphs → BFS → Dijkstra and inspect BFS’s source, mastery, prerequisites, and downstream unlock.
+3. Return to **Today** and open the BFS visual explanation or 20-minute rescue plan.
+4. Select **I need more time**. StudyForge protects recovery time, changes the plan, explains coverage impact, and identifies what moved or deferred.
+5. Use **Undo change** to restore the prior plan.
+6. Take the BFS quiz and save the result to the **Course Notebook**.
+7. Use **New course** to paste an outline; inspect and edit the generated map before studying it.
+8. Open **Portfolio** to compare active courses and deadlines without mixing their prerequisite paths.
 
 ## Architecture
 
 | Layer | Responsibility |
 | --- | --- |
-| `src/lib/planner.ts` | Course graph validation, prerequisite closure, deterministic selection, topological allocation, coverage calculation |
-| `src/app/page.tsx` | Interactive study workspace and plan controls |
-| Future AI layer | Material extraction, source-grounded explanations, mini-quizzes, and natural-language plan actions |
+| `src/lib/planner.ts` | Graph validation, prerequisite closure, deterministic selection, topological scheduling, coverage/mastery metrics |
+| `src/lib/studyforge.ts` | Course, source, notebook, quiz, local coach, local intake, and persistence-domain helpers |
+| `src/components/studyforge-app.tsx` | The complete client workspace, interactions, accessibility states, and local persistence |
+| `src/app/api/coach/route.ts` | Optional source-grounded OpenAI coaching boundary |
+| `src/app/api/ingest/route.ts` | Optional file/text-assisted learning-map extraction boundary |
+| `src/lib/openai.ts` | Server-only Responses API request helper; never exposes the API key client-side |
 
-## Next build milestones
+## Verification
 
-1. Persist courses, topics, blocks, and progress in Supabase.
-2. Add PDF or YouTube transcript ingestion and structured topic extraction.
-3. Make the learning map fully editable (nodes and prerequisite edges).
-4. Add an OpenAI-backed contextual block chat and mastery checks.
-5. Deploy to Vercel and record the Build Week demo.
+```bash
+npx tsc --noEmit
+npm run lint
+npm run build
+```
+
+The build validates the static app plus dynamic AI endpoints. The app is designed with keyboard-focus states, semantic buttons/dialogs, live replan notices, 44px-ish primary controls, and reduced-motion handling.
+
+## Product boundaries
+
+StudyForge intentionally keeps one thing deterministic: schedules and prerequisite safety. AI is used only for material extraction and tutoring assistance; a model never silently rearranges a course plan or bypasses a learning dependency.

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "StudyForge — Adaptive study planning",
-  description: "An explainable, prerequisite-aware study planner.",
+  title: "StudyForge — The adaptive study operating system",
+  description: "Turn source material into a prerequisite-safe, explainable study system.",
 };
 
 export default function RootLayout({

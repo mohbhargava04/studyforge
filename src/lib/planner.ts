@@ -13,6 +13,9 @@ export type Topic = {
   prerequisites: string[];
   status: TopicStatus;
   source: string;
+  description?: string;
+  confidence?: number;
+  lastStudiedAt?: string;
 };
 
 export type PlannerConstraints = {
@@ -26,9 +29,11 @@ export type StudyBlock = {
   day: string;
   dayIndex: number;
   hour: string;
+  durationMinutes: number;
   topicId: string;
   label: string;
   kind: "learn" | "practice" | "review";
+  rationale: string;
 };
 
 export type PlanResult = {
@@ -36,6 +41,8 @@ export type PlanResult = {
   selectedTopicIds: string[];
   deferredTopicIds: string[];
   coverage: number;
+  completedCoverage: number;
+  scheduledCoverage: number;
   capacityHours: number;
   scheduledHours: number;
   bufferHours: number;
@@ -111,7 +118,7 @@ function topicHours(topic: Topic) {
   return topic.estimatedHours + (topic.status === "struggling" ? 1 : 0);
 }
 
-function validateCourseGraph(topics: Topic[]) {
+export function validateCourseGraph(topics: Topic[]) {
   const byId = new Map<string, Topic>();
 
   for (const topic of topics) {
@@ -143,6 +150,13 @@ function validateCourseGraph(topics: Topic[]) {
   };
 
   return topics.some((topic) => visit(topic.id)) ? "The learning map has a prerequisite cycle." : undefined;
+}
+
+export function dependentTopicIds(topicId: string, topics: Topic[]) {
+  const byId = new Map(topics.map((topic) => [topic.id, topic]));
+  return topics
+    .filter((topic) => hasPrerequisite(topic, topicId, byId))
+    .map((topic) => topic.id);
 }
 
 function hasPrerequisite(topic: Topic, prerequisiteId: string, byId: Map<string, Topic>) {
@@ -290,6 +304,22 @@ function blockLabel(topic: Topic, blockIndex: number, blockCount: number) {
   return `${topic.shortTitle}: guided practice`;
 }
 
+function blockRationale(topic: Topic, blockIndex: number, blockCount: number) {
+  if (topic.status === "struggling") {
+    return "A recovery block was protected after you asked for more time.";
+  }
+  if (topic.status === "in_progress") {
+    return "You already started this topic, so the planner protects momentum before opening a new path.";
+  }
+  if (blockIndex === 0 && topic.prerequisites.length) {
+    return "Its prerequisite path is already in scope, so this is now safe to learn.";
+  }
+  if (blockIndex === blockCount - 1 && blockCount > 1) {
+    return "The plan ends this topic with recall and practice instead of another passive pass.";
+  }
+  return "This block balances exam value, effort, and what it unlocks next.";
+}
+
 export function buildStudyPlan(topics: Topic[], constraints: PlannerConstraints): PlanResult {
   const capacityHours = Math.max(0, constraints.days * constraints.hoursPerDay);
   const byId = new Map(topics.map((topic) => [topic.id, topic]));
@@ -305,6 +335,8 @@ export function buildStudyPlan(topics: Topic[], constraints: PlannerConstraints)
       selectedTopicIds: [],
       deferredTopicIds: topics.filter((topic) => topic.status !== "completed").map((topic) => topic.id),
       coverage: totalImportance ? Math.round((completedImportance / totalImportance) * 100) : 0,
+      completedCoverage: totalImportance ? Math.round((completedImportance / totalImportance) * 100) : 0,
+      scheduledCoverage: 0,
       capacityHours,
       scheduledHours: 0,
       bufferHours: capacityHours,
@@ -329,9 +361,11 @@ export function buildStudyPlan(topics: Topic[], constraints: PlannerConstraints)
         day: dayLabel(dayIndex),
         dayIndex,
         hour: `${formatTime(start)}–${formatTime(start + 60)}`,
+        durationMinutes: 60,
         topicId: topic.id,
         label: blockLabel(topic, index, hours),
         kind: index === 0 ? "learn" : index === hours - 1 ? "practice" : "review",
+        rationale: blockRationale(topic, index, hours),
       });
       slotIndex += 1;
     }
@@ -343,6 +377,12 @@ export function buildStudyPlan(topics: Topic[], constraints: PlannerConstraints)
   const totalImportance = topics.reduce((total, topic) => total + topic.importance, 0);
   const coveredImportance = topics
     .filter((topic) => topic.status === "completed" || selectedIds.has(topic.id))
+    .reduce((total, topic) => total + topic.importance, 0);
+  const completedImportance = topics
+    .filter((topic) => topic.status === "completed")
+    .reduce((total, topic) => total + topic.importance, 0);
+  const scheduledImportance = topics
+    .filter((topic) => selectedIds.has(topic.id))
     .reduce((total, topic) => total + topic.importance, 0);
   const bufferHours = Math.max(capacityHours - blocks.length, 0);
   const deferredNames = deferredTopicIds.map((id) => byId.get(id)?.shortTitle).filter(Boolean);
@@ -359,6 +399,8 @@ export function buildStudyPlan(topics: Topic[], constraints: PlannerConstraints)
     selectedTopicIds: [...selectedIds],
     deferredTopicIds,
     coverage: Math.round((coveredImportance / totalImportance) * 100),
+    completedCoverage: totalImportance ? Math.round((completedImportance / totalImportance) * 100) : 0,
+    scheduledCoverage: totalImportance ? Math.round((scheduledImportance / totalImportance) * 100) : 0,
     capacityHours,
     scheduledHours: blocks.length,
     bufferHours,
